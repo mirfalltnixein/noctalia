@@ -7,6 +7,8 @@
 
 namespace settings {
 
+  [[nodiscard]] std::vector<std::string> parseFontFamilyList(std::string_view output);
+
   // Installed font families, deduplicated and sorted case-insensitively. Discovered once via
   // `fc-list` and cached for the process lifetime.
   [[nodiscard]] const std::vector<std::string>& discoverFontFamilies();
