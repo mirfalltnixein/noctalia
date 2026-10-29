@@ -1582,6 +1582,10 @@ void NotificationToast::enforceMaxVisible() {
   // Close the slots left by evicted toasts, as a dismissal would, so new toasts stack after the rest.
   if (evicted && m_config->config().notification.collapseOnDismiss) {
     collapseStack();
+    // The repacked stack may now fit on shorter monitors where some cards were skipped.
+    for (std::size_t i = 0; i < m_entries.size(); ++i) {
+      syncEntryVisibility(i);
+    }
   }
 }
 
