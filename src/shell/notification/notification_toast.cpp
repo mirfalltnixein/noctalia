@@ -1501,12 +1501,24 @@ void NotificationToast::resumeCountdowns(uint32_t notificationId) {
 }
 
 void NotificationToast::revealQueuedEntries() {
+  // enforceMaxVisible() only runs on add, config reload and output change; other reveal paths must respect
+  // max_visible here.
+  const int max = m_config != nullptr ? m_config->config().notification.maxVisible : 0;
+  const auto stackIsFull = [this, max](const PopupEntry& entry) {
+    if (max <= 0) {
+      return false;
+    }
+    const auto placedInStack = std::ranges::count_if(m_entries, [this, &entry](const PopupEntry& other) {
+      return hasPlacement(other) && entriesShareStack(entry, other);
+    });
+    return placedInStack >= max;
+  };
   bool placed = false;
   do {
     placed = false;
     for (std::size_t i = 0; i < m_entries.size(); ++i) {
       auto& entry = m_entries[i];
-      if (entry.exiting || hasPlacement(entry)) {
+      if (entry.exiting || hasPlacement(entry) || stackIsFull(entry)) {
         continue;
       }
       const auto placement = findPlacementY(entry.height, entry.targetOutput);
@@ -1550,6 +1562,7 @@ void NotificationToast::enforceMaxVisible() {
     }
   }
 
+  bool evicted = false;
   for (const auto& placedIndices : placedGroups) {
     if (static_cast<int>(placedIndices.size()) <= max) {
       continue;
@@ -1562,7 +1575,13 @@ void NotificationToast::enforceMaxVisible() {
         m_notifications->pauseExpiry(m_entries[i].notificationId);
       }
       syncEntryVisibility(i);
+      evicted = true;
     }
+  }
+
+  // Close the slots left by evicted toasts, as a dismissal would, so new toasts stack after the rest.
+  if (evicted && m_config->config().notification.collapseOnDismiss) {
+    collapseStack();
   }
 }
 
