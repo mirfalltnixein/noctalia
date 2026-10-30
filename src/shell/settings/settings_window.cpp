@@ -1052,19 +1052,27 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
         break;
       }
       // Any click cancels a pending reset. The confirm button still resets: its onClick captured the
-      // pending state when it was built.
+      // pending state when it was built. A click that opens a select dropdown keeps the reset pending,
+      // because the rebuild would close that dropdown again.
       const bool hadPendingReset =
           !pressed && (!m_pendingResetPageScope.empty() || !m_pendingResetSettingPaths.empty());
+      std::string pendingResetPageScope;
+      std::vector<std::vector<std::string>> pendingResetSettingPaths;
       if (hadPendingReset) {
-        m_pendingResetPageScope.clear();
-        m_pendingResetSettingPaths.clear();
+        pendingResetPageScope = std::exchange(m_pendingResetPageScope, {});
+        pendingResetSettingPaths = std::exchange(m_pendingResetSettingPaths, {});
       }
       m_inputDispatcher.pointerButton(
           static_cast<float>(event.sx), static_cast<float>(event.sy), event.button, pressed, event.serial, event.time,
           event.touch
       );
       if (hadPendingReset) {
-        requestSceneRebuild();
+        if (m_selectPopup != nullptr && m_selectPopup->isSelectDropdownOpen()) {
+          m_pendingResetPageScope = std::move(pendingResetPageScope);
+          m_pendingResetSettingPaths = std::move(pendingResetSettingPaths);
+        } else {
+          requestSceneRebuild();
+        }
       }
       consumed = m_pointerInside;
     }
