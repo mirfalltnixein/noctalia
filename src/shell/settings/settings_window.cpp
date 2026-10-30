@@ -1051,10 +1051,21 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
         consumed = true;
         break;
       }
+      // Any click cancels a pending reset. The confirm button still resets: its onClick captured the
+      // pending state when it was built.
+      const bool hadPendingReset =
+          !pressed && (!m_pendingResetPageScope.empty() || !m_pendingResetSettingPaths.empty());
+      if (hadPendingReset) {
+        m_pendingResetPageScope.clear();
+        m_pendingResetSettingPaths.clear();
+      }
       m_inputDispatcher.pointerButton(
           static_cast<float>(event.sx), static_cast<float>(event.sy), event.button, pressed, event.serial, event.time,
           event.touch
       );
+      if (hadPendingReset) {
+        requestSceneRebuild();
+      }
       consumed = m_pointerInside;
     }
     break;
@@ -1140,7 +1151,9 @@ void SettingsWindow::onKeyboardEvent(const KeyboardEvent& event) {
         || !m_renamingBarName.empty()
         || !m_pendingDeleteBarName.empty()
         || !m_renamingMonitorOverrideBarName.empty()
-        || !m_pendingDeleteMonitorOverrideBarName.empty()) {
+        || !m_pendingDeleteMonitorOverrideBarName.empty()
+        || !m_pendingResetPageScope.empty()
+        || !m_pendingResetSettingPaths.empty()) {
       m_editingWidgetName.clear();
       m_editingCapsuleGroupId.clear();
       m_selectedLaneWidgets.clear();
@@ -1154,6 +1167,8 @@ void SettingsWindow::onKeyboardEvent(const KeyboardEvent& event) {
       m_renamingMonitorOverrideMatch.clear();
       m_pendingDeleteMonitorOverrideBarName.clear();
       m_pendingDeleteMonitorOverrideMatch.clear();
+      m_pendingResetPageScope.clear();
+      m_pendingResetSettingPaths.clear();
       requestRebuild();
       return;
     }
